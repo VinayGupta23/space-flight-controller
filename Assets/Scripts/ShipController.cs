@@ -22,26 +22,26 @@ public class ShipController : MonoBehaviour
     public TiltController tiltController;
 
     [Header("Thrust")]
-    public float thrustSpeed = 60;
+    public float thrustSpeed = 20f;
     public float boostMultiplier = 2f;
     public float slowMultiplier = 0.5f;
 
     [Header("Strafe")]
-    public float strafeSpeed = 45;     // meters/second
-    public float strafeTilt = 20;      // degrees
-    public float strafeTiltSpeed = 90; // degrees/second
+    public float strafeSpeed = 10f;     // meters/second
+    public float strafeTilt = 20f;      // degrees
+    public float strafeTiltSpeed = 90f; // degrees/second
 
     [Header("Turn")]
-    public float pitchSensitivity = 1;
-    public float yawSensitivity = 1;
-    public float yawTilt = 30;
-    public float yawTiltSpeed = 90;
+    public float pitchSensitivity = 1f;
+    public float yawSensitivity = 1f;
+    public float yawTilt = 20f;
+    public float yawTiltSpeed = 90f;
 
     [Header("Evasion")]
-    public float evadeStrafeSpeed = 90;
-    public float evadeTiltSpeed = 420;
-    public float evadePitchSpeed = 360;
-    public float evadeRadius = 8;
+    public float evadeStrafeSpeed = 60f;
+    public float evadeTiltSpeed = 720f;
+    public float evadePitchSpeed = 720f;
+    public float evadeRadius = 4.5f;
 
     #region User Inputs
 
@@ -133,11 +133,8 @@ public class ShipController : MonoBehaviour
                     _vRollAngle = 0;
                 }
                 tiltController.tiltSpeed = evadeTiltSpeed;
-
-                return;
             }
-            
-            if (_strafeInput != 0)
+            else if (_strafeInput != 0)
             {
                 transform.Translate(_strafeInput * strafeSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
                 
@@ -152,24 +149,20 @@ public class ShipController : MonoBehaviour
                 tiltController.targetAngle = _yawInput == 0 ? 0 : yawTilt * -Mathf.Sign(_yawInput);
                 tiltController.tiltSpeed = yawTiltSpeed;
             }
-
-            float multiplier = Mathf.Lerp(slowMultiplier, boostMultiplier, (1 + _boostInput) / 2);
-            transform.Translate(0, 0, thrustSpeed * multiplier * Time.fixedDeltaTime, Space.Self);
         }
 
         if (_shipState == ShipState.Evading)
         {
             if (_evasionInput == EvadeDirection.East || _evasionInput == EvadeDirection.West)
             {
+                float direction = _evasionInput == EvadeDirection.East ? 1 : -1;
+                transform.Translate(direction * evadeStrafeSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
+
                 if (tiltController.isTilting == false)
                 {
                     _shipState = ShipState.Normal;
                     _evasionInput = EvadeDirection.None;
-                    return;
                 }
-
-                float direction = _evasionInput == EvadeDirection.East ? 1 : -1;
-                transform.Translate(direction * evadeStrafeSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
             }
             else if (_evasionInput == EvadeDirection.Vertical)
             {
@@ -185,9 +178,21 @@ public class ShipController : MonoBehaviour
                 {
                     _shipState = ShipState.Normal;
                     _evasionInput = EvadeDirection.None;
-                    return;
                 }
             }
         }
+
+        float multiplier = Mathf.Lerp(slowMultiplier, boostMultiplier, (1 + _boostInput) / 2);
+        transform.Translate(0, 0, thrustSpeed * multiplier * Time.fixedDeltaTime, Space.Self);
     }
+
+    #region Debug Methods
+
+    [ContextMenu("Turn East")]
+    public void TurnEast()
+    {
+        transform.Rotate(0, 45, 0, Space.World);
+    }
+
+    #endregion
 }
