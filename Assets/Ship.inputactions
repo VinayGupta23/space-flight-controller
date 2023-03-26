@@ -42,7 +42,7 @@
                     "initialStateCheck": true
                 },
                 {
-                    "name": "Strafe",
+                    "name": "Drift",
                     "type": "Value",
                     "id": "a2679c10-c8c1-441a-9541-dbb5492dacb6",
                     "expectedControlType": "Axis",
@@ -222,7 +222,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Strafe",
+                    "action": "Drift",
                     "isComposite": true,
                     "isPartOfComposite": false
                 },
@@ -233,7 +233,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Strafe",
+                    "action": "Drift",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -244,7 +244,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Strafe",
+                    "action": "Drift",
                     "isComposite": false,
                     "isPartOfComposite": true
                 },
@@ -255,7 +255,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "Strafe",
+                    "action": "Drift",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

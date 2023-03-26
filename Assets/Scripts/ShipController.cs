@@ -1,109 +1,103 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public enum EvadeDirection
-{
-    None,
-    East,
-    West,
-    Vertical
-}
 
-public enum ShipState
+public class ShipController : MonoBehaviour, IShipStateNotifier
 {
-    Normal,
-    Evading
-}
-
-public class ShipController : MonoBehaviour
-{
-    public TiltController tiltController;
-
     [Header("Thrust")]
     public float thrustSpeed = 20f;
     public float boostMultiplier = 2f;
     public float slowMultiplier = 0.5f;
 
-    [Header("Strafe")]
-    public float strafeSpeed = 10f;     // meters/second
-    public float strafeTilt = 20f;      // degrees
-    public float strafeTiltSpeed = 90f; // degrees/second
+    [Header("Drift")]
+    public float driftSpeed = 10f;
 
     [Header("Turn")]
     public float pitchSensitivity = 1f;
     public float yawSensitivity = 1f;
-    public float yawTilt = 20f;
-    public float yawTiltSpeed = 90f;
 
-    [Header("Evasion")]
-    public float evadeStrafeSpeed = 60f;
-    public float evadeTiltSpeed = 720f;
+    [Header("Evade: East/West")]
+    public float evadeDriftSpeed = 60f;
+    public float evadeRollSpeed = 720f;
+
+    [Header("Evade: Vertical")]
     public float evadePitchSpeed = 720f;
     public float evadeRadius = 4.5f;
 
     #region User Inputs
 
     float _boostInput = 0;
-    float _strafeInput = 0;
-    float _pitchInput = 0;
-    float _yawInput = 0;
-    EvadeDirection _evasionInput = EvadeDirection.None;
+    float _driftInput = 0;
+    Vector2 _turnInput = Vector2.zero;
+    ShipState _evasionInput = ShipState.Normal;
 
     public void OnBoost(InputValue value)
     {
         _boostInput = value.Get<float>();
     }
 
-    public void OnStrafe(InputValue value)
+    public void OnDrift(InputValue value)
     {
-        _strafeInput = value.Get<float>();
+        _driftInput = value.Get<float>();
     }
 
     public void OnPitchYaw(InputValue value)
     {
-        Vector2 pitchYaw = value.Get<Vector2>();
-        _yawInput = pitchYaw.x;
-        _pitchInput = pitchYaw.y;
+        _turnInput = value.Get<Vector2>();
     }
 
     public void OnRollEast()
     {
-        if (_shipState != ShipState.Normal)
+        if (shipState != ShipState.Normal)
         {
             Debug.Log("Ignoring evade input as already evading!");
             return;
         }
-        _evasionInput = EvadeDirection.East;
+        _evasionInput = ShipState.EvadeEast;
     }
 
     public void OnRollWest()
     {
-        if (_shipState != ShipState.Normal)
+        if (shipState != ShipState.Normal)
         {
             Debug.Log("Ignoring evade input as already evading!");
             return;
         }
-        _evasionInput = EvadeDirection.West;
+        _evasionInput = ShipState.EvadeWest;
     }
 
     public void OnRollVertical()
     {
-        if (_shipState != ShipState.Normal)
+        if (shipState != ShipState.Normal)
         {
             Debug.Log("Ignoring evade input as already evading!");
             return;
         }
-        _evasionInput = EvadeDirection.Vertical;
+        _evasionInput = ShipState.EvadeVertical;
     }
 
     #endregion
 
     ShipState _shipState = ShipState.Normal;
-    float _vRollAngle = 0;
 
-    public ShipState shipState { get { return _shipState; } }
+    // For evasion
+    float _startRollAngle = 0f;
+    float _endRollAngle = 0f;
+    Vector3 _evadeDirection = Vector3.zero;
+
+    public Action<ShipState> OnShipStateChanged { get; set; }
+    public ShipState shipState
+    { 
+        get { return _shipState; }
+        set
+        {
+            _shipState = value;
+            OnShipStateChanged(value);
+        }
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -113,72 +107,29 @@ public class ShipController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (_shipState == ShipState.Normal)
+        if (shipState == ShipState.Normal)
         {
-            if (_evasionInput != EvadeDirection.None)
+            if (_evasionInput != ShipState.Normal)
             {
-                _shipState = ShipState.Evading;
-
-                if (_evasionInput == EvadeDirection.East)
-                {
-                    tiltController.targetAngle = -360;
-                }
-                else if (_evasionInput == EvadeDirection.West)
-                {
-                    tiltController.targetAngle = 360;
-                }
-                else
-                {
-                    tiltController.targetAngle = 0;
-                    _vRollAngle = 0;
-                }
-                tiltController.tiltSpeed = evadeTiltSpeed;
-            }
-            else if (_strafeInput != 0)
-            {
-                transform.Translate(_strafeInput * strafeSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
-                
-                tiltController.targetAngle = strafeTilt * -Mathf.Sign(_strafeInput);
-                tiltController.tiltSpeed = strafeTiltSpeed;
+                SetupEvade(_evasionInput);
+                shipState = _evasionInput;
             }
             else
             {
-                transform.Rotate(-_pitchInput * pitchSensitivity, 0, 0, Space.Self);
-                transform.Rotate(0, _yawInput * yawSensitivity, 0, Space.World);
-
-                tiltController.targetAngle = _yawInput == 0 ? 0 : yawTilt * -Mathf.Sign(_yawInput);
-                tiltController.tiltSpeed = yawTiltSpeed;
+                ProcessNormalInput();
             }
         }
-
-        if (_shipState == ShipState.Evading)
+        else
         {
-            if (_evasionInput == EvadeDirection.East || _evasionInput == EvadeDirection.West)
-            {
-                float direction = _evasionInput == EvadeDirection.East ? 1 : -1;
-                transform.Translate(direction * evadeStrafeSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
+            bool evadeDone = 
+                shipState == ShipState.EvadeVertical 
+                ? PerformEvadeVertical() 
+                : PerformEvadeHorizontal();
 
-                if (tiltController.isTilting == false)
-                {
-                    _shipState = ShipState.Normal;
-                    _evasionInput = EvadeDirection.None;
-                }
-            }
-            else if (_evasionInput == EvadeDirection.Vertical)
+            if (evadeDone)
             {
-                float nextAngle = Mathf.MoveTowards(_vRollAngle, 360, evadePitchSpeed * Time.fixedDeltaTime);
-                transform.RotateAround(
-                    transform.position + (evadeRadius * transform.up),
-                    transform.right,
-                    -1 * (nextAngle - _vRollAngle)
-                );
-                _vRollAngle = nextAngle;
-
-                if (_vRollAngle == 360)
-                {
-                    _shipState = ShipState.Normal;
-                    _evasionInput = EvadeDirection.None;
-                }
+                shipState = ShipState.Normal;
+                _evasionInput = ShipState.Normal;
             }
         }
 
@@ -186,13 +137,65 @@ public class ShipController : MonoBehaviour
         transform.Translate(0, 0, thrustSpeed * multiplier * Time.fixedDeltaTime, Space.Self);
     }
 
-    #region Debug Methods
-
-    [ContextMenu("Turn East")]
-    public void TurnEast()
+    void ProcessNormalInput()
     {
-        transform.Rotate(0, 45, 0, Space.World);
+        float _yawInput = _turnInput.x;
+        float _pitchInput = _turnInput.y;
+
+        transform.Rotate(-_pitchInput * pitchSensitivity, 0, 0, Space.Self);
+        transform.Rotate(0, _yawInput * yawSensitivity, 0, Space.World);
+
+        if (_turnInput == Vector2.zero)
+        {
+            // Only do drift if ship is not turning
+            transform.Translate(_driftInput * driftSpeed * Time.fixedDeltaTime, 0, 0, Space.Self);
+        }
     }
 
-    #endregion
+    void SetupEvade(ShipState evadeState)
+    {
+        switch (evadeState)
+        {
+            case ShipState.EvadeEast:
+                _startRollAngle = 0;
+                _endRollAngle = -360;
+                _evadeDirection = transform.right;
+                break;
+            case ShipState.EvadeWest:
+                _startRollAngle = 0;
+                _endRollAngle = 360;
+                _evadeDirection = -transform.right;
+                break;
+            case ShipState.EvadeVertical:
+                _startRollAngle = 0;
+                _endRollAngle = 360;
+                break;
+            default:
+                break;
+        }
+    }
+
+    bool PerformEvadeHorizontal()
+    {
+        float nextAngle = Mathf.MoveTowards(_startRollAngle, _endRollAngle, evadeRollSpeed * Time.fixedDeltaTime);
+        transform.Rotate(0, 0, nextAngle - _startRollAngle, Space.Self);
+        _startRollAngle = nextAngle;
+
+        transform.position += _evadeDirection * evadeDriftSpeed * Time.fixedDeltaTime;
+
+        return _startRollAngle == _endRollAngle;
+    }
+
+    bool PerformEvadeVertical()
+    {
+        float nextAngle = Mathf.MoveTowards(_startRollAngle, _endRollAngle, evadePitchSpeed * Time.fixedDeltaTime);
+        transform.RotateAround(
+            transform.position + (evadeRadius * transform.up),
+            transform.right,
+            -1 * (nextAngle - _startRollAngle)
+        );
+        _startRollAngle = nextAngle;
+
+        return _startRollAngle == _endRollAngle;
+    }
 }
