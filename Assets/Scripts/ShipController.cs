@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 
 public class ShipController : MonoBehaviour, IShipStateNotifier
@@ -25,7 +26,9 @@ public class ShipController : MonoBehaviour, IShipStateNotifier
 
     [Header("Evade: Vertical")]
     public float evadePitchSpeed = 720f;
-    public float evadeRadius = 4.5f;
+    [FormerlySerializedAs("evadeRadius")]
+    public float evadeInitialRadius = 4f;
+    public float evadeFinalRadius = 2f;
 
     #region User Inputs
 
@@ -90,7 +93,7 @@ public class ShipController : MonoBehaviour, IShipStateNotifier
 
     public Action<ShipState> OnShipStateChanged { get; set; }
     public ShipState shipState
-    { 
+    {
         get { return _shipState; }
         set
         {
@@ -121,9 +124,9 @@ public class ShipController : MonoBehaviour, IShipStateNotifier
         }
         else
         {
-            bool evadeDone = 
-                shipState == ShipState.EvadeVertical 
-                ? PerformEvadeVertical() 
+            bool evadeDone =
+                shipState == ShipState.EvadeVertical
+                ? PerformEvadeVertical()
                 : PerformEvadeHorizontal();
 
             if (evadeDone)
@@ -189,8 +192,9 @@ public class ShipController : MonoBehaviour, IShipStateNotifier
     bool PerformEvadeVertical()
     {
         float nextAngle = Mathf.MoveTowards(_startRollAngle, _endRollAngle, evadePitchSpeed * Time.fixedDeltaTime);
+        float nextRadius = Mathf.Lerp(evadeInitialRadius, evadeFinalRadius, _startRollAngle / _endRollAngle);
         transform.RotateAround(
-            transform.position + (evadeRadius * transform.up),
+            transform.position + (nextRadius * transform.up),
             transform.right,
             -1 * (nextAngle - _startRollAngle)
         );
