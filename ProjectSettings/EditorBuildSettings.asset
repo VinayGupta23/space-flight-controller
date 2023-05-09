@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/AtmosphericFlying.unity
+    guid: f552fa60b98163045bf3e5782d35bbf1
   m_configObjects: {}
